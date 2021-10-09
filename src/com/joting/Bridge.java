@@ -2,6 +2,9 @@ package com.joting;
 
 import java.util.*;
 
+/**
+ * 网桥类
+ */
 public class Bridge extends Device implements Node{
     HashMap<Device, Integer> table = new HashMap<>();
     HashMap<Device,Integer> old_table = new HashMap<>();
@@ -21,20 +24,17 @@ public class Bridge extends Device implements Node{
      * @param data
      * @return 是否要继续转发
      */
-    int forward(Data data,int sourcePort,List<Device>route){
+    int forward(Data data,int sourcePort){
         if (!table.containsKey(data.destination)){
-            System.out.println("未知目的地址，丢弃数据");
-
+            System.out.println("未知目的地址，需要广播");
             return -1;
         }
         int port = table.get(data.destination);
         if (port == sourcePort){
             System.out.println("目的地址与源地址属于同一网段，目的主机已收到数据");
-            route.add(data.destination);
             return port;
         }
-        System.out.printf("从端口:%d,转发数据包\n",port);
-        route.add(this);
+        System.out.printf("需从端口:%d,转发数据包\n",port);
         return port;
     }
     void printTable(){
@@ -50,4 +50,8 @@ public class Bridge extends Device implements Node{
         table = old_table;
     }
 
+    @Override
+    public String name() {
+        return name;
+    }
 }

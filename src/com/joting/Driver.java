@@ -2,6 +2,9 @@ package com.joting;
 
 import java.util.*;
 
+/**
+ * 驱动
+ */
 public class Driver {
     Set<Host> hosts = new HashSet<>();
     List<Device> route = new LinkedList<>();
@@ -26,7 +29,7 @@ public class Driver {
             System.out.println("请输入命令：");
             System.out.println("init:初始化");
             System.out.println("add:增加网桥");
-            System.out.println("addNet:为网桥添加网络");
+            System.out.println("addnet:为网桥添加网络");
             System.out.println("show:打印拓扑结构");
             System.out.println("send:发送数据包");
             System.out.println("back:后退");
@@ -43,7 +46,7 @@ public class Driver {
             add();
             return;
         }
-        if (cmd.equals("addNet")){
+        if (cmd.equals("addnet")){
             addNet();
             return;
         }
@@ -99,6 +102,7 @@ public class Driver {
         return net;
     }
     void bridgeAdd(Bridge bridge,Net net){
+        if (bridge == null || net == null) return;
         bridge.nets.add(net);
         graph.get(bridge).add(net);
         graph.get(net).add(bridge);
@@ -131,26 +135,29 @@ public class Driver {
         }
     }
     void printGraph(){
-        List<Node> topo = getTopoSequence(graph);
-        if (topo == null){
-            System.out.println("拓扑不存在");
-            return;
-        }
+//        List<Node> topo = getTopoSequence(graph);
+//        if (topo == null){
+//            System.out.println("拓扑不存在");
+//            return;
+//        }
+//        System.out.println("****网络结构****");
+//        for (Node node : topo) {
+//            if (node.getClass() == Bridge.class){
+//                Bridge bridge = (Bridge)node;
+//                System.out.printf("网桥:%s\n",bridge.name);
+//            }
+//            if (node.getClass() == Net.class){
+//                Net net = (Net)node;
+//                System.out.printf("网段%d:",net.id);
+//                for (Host host:net.hosts) {
+//                    System.out.printf("%s ",host.name);
+//                }
+//                System.out.println();
+//            }
+//        }
+        TreeNode rootNode = TreeNode.makeTree(graph);
         System.out.println("****网络结构****");
-        for (Node node : topo) {
-            if (node.getClass() == Bridge.class){
-                Bridge bridge = (Bridge)node;
-                System.out.printf("网桥:%s\n",bridge.name);
-            }
-            if (node.getClass() == Net.class){
-                Net net = (Net)node;
-                System.out.printf("网段%d:",net.id);
-                for (Host host:net.hosts) {
-                    System.out.printf("%s ",host.name);
-                }
-                System.out.println();
-            }
-        }
+        rootNode.printTree();
         System.out.println("************");
     }
     void sendData(String message,Host source,Host destination){
@@ -158,34 +165,74 @@ public class Driver {
         route = new LinkedList<>();
         route.add(source);
         Net net = getNet(source.netNo);
-        backward(data,net,graph,route);
+        backward(data,net,graph,route,new LinkedList<>());
     }
-    void backward(Data data,Net net,Map<Node,Set<Node>> graph,List<Device>route){
-        for (Node node: graph.get(net)) {
-            Bridge bridge = (Bridge) node;
-            int port = bridge.nets.indexOf(net);
-            bridge.add(data.source,port);
-        }
-        if (data.destination.netNo == net.id){
-            //找到目的地
-            route.add(data.destination);
-            printRoute();
-            return;
-        }
-        for (Node node: graph.get(net)) {
-            Bridge bridge = (Bridge) node;
-            int port = bridge.nets.indexOf(net);
-            int forwardPort = bridge.forward(data,port,route);
-            if (forwardPort == -1){
-                continue;
-            }else {
-                Net nextnNet = bridge.nets.get(forwardPort);
-                if (net != nextnNet && nextnNet.id != data.source.netNo){
-                    backward(data,net,graph,route);
+    boolean backward(Data data,Node node,Map<Node,Set<Node>> graph,List<Device>route,List<Node>visited){
+        visited.add(node);//已访问
+        if (visited.size() == graph.keySet().size()) return false;
+        if (node.getClass() == Net.class){
+            for (Node neibghbor: graph.get(node)) {
+                if (visited.contains(node)) continue;
+                Bridge bridge = (Bridge) neibghbor;
+                int port1 = bridge.nets.indexOf(node);
+                if (port1 != -1){
+                    bridge.add(data.source,port1);
                 }
-                break;
+            }
+            if (data.destination.netNo == ((Net) node).id){
+                //找到目的地
+                route.add(data.destination);
+                printRoute();
+                return true;
+            }
+            //向四周广播
+            for (Node neibghbor: graph.get(node)) {
+                if (visited.contains(neibghbor)) continue; //避免回路
+                if(backward(data,neibghbor,graph,route,visited)){
+                    return true;
+                }
+                visited.remove(neibghbor);
             }
         }
+        if (node.getClass() == Bridge.class){
+            //网桥
+            Bridge bridge = (Bridge) node;
+            Net lastNode = (Net)visited.get(visited.size() - 2);
+            int port = bridge.nets.indexOf(lastNode);
+            int forwardPort = bridge.forward(data,port);
+            if (forwardPort == -1){
+                // 未知目的地
+                // 对其他地方广播
+                route.add(bridge);
+                for (Node neibghbor: graph.get(node)) {
+                    if (visited.contains(neibghbor)) continue; //避免回路
+                    if(backward(data,neibghbor,graph,route,visited)){
+                        return true;
+                    }
+                    visited.remove(neibghbor);
+                }
+            }else {
+                // 找到目标端口
+                if (forwardPort == port){
+                    // 在同一网段
+                    // 已到达目的地
+                    route.add(data.destination);
+                    printRoute();
+                    return true;
+                }else {
+                    // 向目标端口转发
+                    route.add(bridge);
+                    Net nextnNet = bridge.nets.get(forwardPort);
+                    if (!visited.contains(nextnNet)){
+                        if(backward(data,nextnNet,graph,route,visited)){
+                            return true;
+                        }
+                        visited.remove(nextnNet);
+                    }
+                }
+            }
+        }
+        return false;
     }
     void printRoute(){
         boolean isFirst = true;
@@ -233,6 +280,7 @@ public class Driver {
         }
         return null;
     }
+
     /**
      * 获取入度
      * @param graph

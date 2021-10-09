@@ -1,5 +1,8 @@
 package com.joting;
 
+/**
+ * 设备基础类
+ */
 public abstract class Device {
     String name = "";
     String address = "";

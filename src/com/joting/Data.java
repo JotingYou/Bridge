@@ -1,6 +1,8 @@
 package com.joting;
 
-
+/**
+ * 数据包
+ */
 public class Data {
     Host source;
     Host destination;
