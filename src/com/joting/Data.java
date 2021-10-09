@@ -1,0 +1,15 @@
+package com.joting;
+
+
+public class Data {
+    Host source;
+    Host destination;
+    String message = "";
+
+    public Data(Host source,Host destination,String message){
+        this.destination = destination;
+        this.source = source;
+        this.message = message;
+    }
+
+}
