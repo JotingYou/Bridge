@@ -2,7 +2,6 @@ package com.joting;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Scanner;
 
 /**
  * 自治网段类
@@ -13,7 +12,9 @@ public class Net implements Node {
         super();
         this.id = num;
     }
+    ///网段包含的主机
     List<Host> hosts = new LinkedList<>();
+
     void addHost(Host host){
         hosts.add(host);
     }

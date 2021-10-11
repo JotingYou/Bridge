@@ -12,6 +12,7 @@ public class Driver {
     int netCount = 0;
     int bridgeCount = 0;
     Scanner scanner;
+    ///初始化网络
     void init(){
         hosts = new HashSet<>();
         netCount = 0;
@@ -21,7 +22,9 @@ public class Driver {
         for (int i = 0; i < n; i++) {
             add();
         }
+        printGraph();
     }
+    //运行程序
     void run(){
         scanner = new Scanner(System.in);
         init();
@@ -29,14 +32,16 @@ public class Driver {
             System.out.println("请输入命令：");
             System.out.println("init:初始化");
             System.out.println("add:增加网桥");
-            System.out.println("addnet:为网桥添加网络");
-            System.out.println("show:打印拓扑结构");
+            System.out.println("link:连接已存在网段与网桥");
+            System.out.println("show:打印网络结构");
             System.out.println("send:发送数据包");
+            System.out.println("showtable:打印网桥的转发表");
             System.out.println("back:后退");
             System.out.println("q:退出");
             dealCommand(scanner.next());
         }
     }
+    ///处理输入的命令
     void dealCommand(String cmd){
         if (cmd.equals("init")){
             init();
@@ -46,8 +51,8 @@ public class Driver {
             add();
             return;
         }
-        if (cmd.equals("addnet")){
-            addNet();
+        if (cmd.equals("link")){
+            link();
             return;
         }
         if (cmd.equals("send")){
@@ -62,16 +67,40 @@ public class Driver {
             printGraph();
             return;
         }
+        if (cmd.equals("showtable")){
+            showTable();
+            return;
+        }
         if (cmd.equals("q")){
             System.exit(0);
         }
     }
+    ///打印转发表
+    void showTable(){
+        System.out.println("请输入需展示的网桥名（如 B1 ）");
+        String name = scanner.next();
+        Bridge bridge = getBridge(name);
+        if (bridge == null){
+            System.out.println("网桥不存在");
+            return;
+        }
+        bridge.printTable();
+    }
+
+    ///新增网桥
     void add(){
+
         String name = "B" + bridgeCount;
         bridgeCount ++;
         Bridge bridge = new Bridge(name);
         graph.put(bridge,new HashSet<>());
-        System.out.printf("请输入网桥：%s 网段数量： ",name);
+        if(bridgeCount > 1){
+            System.out.println("请输入网段号来将新网桥纳入原网络（如 1 ）:");
+            int netNo = scanner.nextInt();
+            Net net = getNet(netNo);
+            bridgeAdd(bridge,net);
+        }
+        System.out.printf("请输入新网桥：%s 的网段数量： ",name);
         int netCount = scanner.nextInt();
         for (int i = 0; i < netCount; i++) {
             Net net = makeNet();
@@ -79,15 +108,17 @@ public class Driver {
         }
 
     }
-    void addNet(){
-        System.out.print("请输入网络号:");
+    ///连接网桥和网段
+    void link(){
+        System.out.print("请输入网段号（如 1 ）:");
         int netNo = scanner.nextInt();
-        System.out.print("\n请输入网桥名:");
+        System.out.print("\n请输入网桥名（如 B1 ）:");
         String name = scanner.next();
         Bridge bridge = getBridge(name);
         Net net = getNet(netNo);
         bridgeAdd(bridge,net);
     }
+    ///创建网段
     Net makeNet(){
         Net net = new Net(netCount);
         graph.put(net,new HashSet<>());
@@ -101,6 +132,7 @@ public class Driver {
         }
         return net;
     }
+    ///为网桥添加网段
     void bridgeAdd(Bridge bridge,Net net){
         if (bridge == null || net == null) return;
         bridge.nets.add(net);
@@ -108,21 +140,21 @@ public class Driver {
         graph.get(net).add(bridge);
     }
     void send(){
-        System.out.print("请输入源主机名称:");
+        System.out.print("请输入源主机名称（如 H1 ）:");
         String name = scanner.next();
         Host source = getHost(name);
         if (source == null){
             System.out.println("该主机不存在");
             return;
         }
-        System.out.print("请输入目的主机名称:");
+        System.out.print("请输入目的主机名称（如 H2 ）:");
         name = scanner.next();
         Host dest = getHost(name);
         if (dest == null){
             System.out.println("该主机不存在");
             return;
         }
-        System.out.println("请输入消息内容:");
+        System.out.println("请输入消息内容（如 123 ）:");
         String msg = scanner.next();
         sendData(msg,source,dest);
     }
@@ -134,32 +166,14 @@ public class Driver {
             }
         }
     }
+    ///打印网络
     void printGraph(){
-//        List<Node> topo = getTopoSequence(graph);
-//        if (topo == null){
-//            System.out.println("拓扑不存在");
-//            return;
-//        }
-//        System.out.println("****网络结构****");
-//        for (Node node : topo) {
-//            if (node.getClass() == Bridge.class){
-//                Bridge bridge = (Bridge)node;
-//                System.out.printf("网桥:%s\n",bridge.name);
-//            }
-//            if (node.getClass() == Net.class){
-//                Net net = (Net)node;
-//                System.out.printf("网段%d:",net.id);
-//                for (Host host:net.hosts) {
-//                    System.out.printf("%s ",host.name);
-//                }
-//                System.out.println();
-//            }
-//        }
         TreeNode rootNode = TreeNode.makeTree(graph);
         System.out.println("****网络结构****");
         rootNode.printTree();
         System.out.println("************");
     }
+    ///发送数据
     void sendData(String message,Host source,Host destination){
         Data data = new Data(source,destination,message);
         route = new LinkedList<>();
@@ -167,6 +181,7 @@ public class Driver {
         Net net = getNet(source.netNo);
         backward(data,net,graph,route,new LinkedList<>());
     }
+    ///回溯
     boolean backward(Data data,Node node,Map<Node,Set<Node>> graph,List<Device>route,List<Node>visited){
         visited.add(node);//已访问
         if (visited.size() == graph.keySet().size()) return false;
@@ -234,6 +249,7 @@ public class Driver {
         }
         return false;
     }
+    ///打印最近一次数据包发送路径
     void printRoute(){
         boolean isFirst = true;
         for (Device device:route) {
@@ -279,66 +295,5 @@ public class Driver {
             }
         }
         return null;
-    }
-
-    /**
-     * 获取入度
-     * @param graph
-     * @return
-     */
-    private Map<Node,Integer> getIndgrees(Map<Node,Set<Node>> graph){
-        Map<Node,Integer> indgrees = new HashMap<>();
-        for (Node node:graph.keySet()){
-            if (!indgrees.containsKey(node)){
-                indgrees.put(node,0);
-            }
-            for (Node neighbor:graph.get(node)){
-                indgrees.put(neighbor,indgrees.getOrDefault(neighbor,0) + 1);
-            }
-        }
-        return indgrees;
-    }
-    /**
-     * 获取拓扑序列
-     * @param graph 图
-     * @return 拓扑序列
-     */
-    private List<Node> getTopoSequence(Map<Node,Set<Node>> graph){
-        Map<Node,Integer> indgrees = getIndgrees(graph);
-        List<Node> topoSeq = new LinkedList<>();
-        Queue<Node> queue = new LinkedList<>();
-        for (Node node:indgrees.keySet()){
-            if (indgrees.get(node) == 0){
-                //将入度为0的结点加入序列
-                topoSeq.add(node);
-                queue.offer(node);
-            }
-        }
-        while (queue.isEmpty()){
-            for (Node node:indgrees.keySet()){
-                indgrees.put(node,indgrees.get(node) - 1);
-                if (indgrees.get(node) == 0){
-                    //将入度为0的结点加入序列
-                    topoSeq.add(node);
-                    queue.offer(node);
-                }
-            }
-        }
-        while (!queue.isEmpty()){
-            Node node = queue.poll();
-            for (Node neighbor:graph.get(node)){
-                //将入度为0的结点删除，并将其下一个点入度-1
-                indgrees.put(neighbor,indgrees.get(neighbor) - 1);
-                if (indgrees.get(neighbor) == 0){
-                    queue.offer(neighbor);
-                    topoSeq.add(neighbor);
-                }
-            }
-        }
-        if (indgrees.size() != topoSeq.size()){
-            //获取不到拓扑排序
-            return null;
-        }
-        return topoSeq;
     }
 }

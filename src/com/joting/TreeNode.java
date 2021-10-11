@@ -55,6 +55,15 @@ public class TreeNode {
                 if (treeNode.preNode != null){
                     nodeLabel = "(" + treeNode.preNode.node.name() + ")" + nodeLabel;
                 }
+                if (treeNode.node.getClass().equals(Net.class)){
+                    Net net = (Net) treeNode.node;
+                    nodeLabel += "( ";
+                    for (Host host:net.hosts) {
+                        nodeLabel += host.name;
+                        nodeLabel += ' ';
+                    }
+                    nodeLabel += ')';
+                }
                 System.out.printf("%s ",nodeLabel);
                 //添加下一层
                 for (TreeNode child:treeNode.treeNodes) {

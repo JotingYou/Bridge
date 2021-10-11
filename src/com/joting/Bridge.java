@@ -25,16 +25,17 @@ public class Bridge extends Device implements Node{
      * @return 是否要继续转发
      */
     int forward(Data data,int sourcePort){
+        add(data.source,sourcePort);
         if (!table.containsKey(data.destination)){
-            System.out.println("未知目的地址，需要广播");
+            System.out.printf("%s:未知目的地址，需要广播\n",name);
             return -1;
         }
         int port = table.get(data.destination);
         if (port == sourcePort){
-            System.out.println("目的地址与源地址属于同一网段，目的主机已收到数据");
+            System.out.printf("%s:目的地址与源地址属于同一网段，目的主机已收到数据\n",name);
             return port;
         }
-        System.out.printf("需从端口:%d,转发数据包\n",port);
+        System.out.printf("%s:需从端口:%d,转发数据包\n",name,port);
         return port;
     }
     void printTable(){
